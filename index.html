@@ -1,0 +1,1258 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Трекер тренировок</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+    </style>
+  </head>
+  <body class="bg-slate-800 text-slate-100">
+    <div id="root" class="min-h-screen"></div>
+    <script type="module">
+      import React, { useEffect, useMemo, useState } from "https://esm.sh/react@18.2.0";
+      import { createRoot } from "https://esm.sh/react-dom@18.2.0/client";
+      import {
+        Calendar,
+        CheckCircle2,
+        AlertTriangle,
+        XCircle,
+        Dumbbell,
+        BarChart2,
+        List,
+        Settings,
+        Info,
+        Bell,
+        ClipboardCopy,
+        Save,
+        Trash2,
+      } from "https://esm.sh/lucide-react@0.453.0";
+      import htm from "https://esm.sh/htm@3.1.1";
+
+      const html = htm.bind(React.createElement);
+      const STORAGE_KEY = "teen-workout-tracker-v1";
+      const STATUS_LABELS = {
+        full: "Тренировка полная",
+        adapted: "Адаптировано",
+        missed: "Пропущено",
+        rest: "Отдых",
+        sick: "Болезнь",
+      };
+
+      const STATUS_COLORS = {
+        full: "bg-emerald-500",
+        adapted: "bg-amber-500",
+        missed: "bg-red-500",
+        rest: "bg-slate-500",
+        sick: "bg-rose-500",
+      };
+
+      const defaultPlans = [
+        {
+          id: "day1",
+          title: "День 1 — Грудь + Плечи",
+          duration: "30-40 минут",
+          warmup: [
+            "Вращения головой 10x",
+            "Cat-Camel 10x",
+            "Ягодичный мост 12x",
+          ],
+          exercises: [
+            {
+              id: "d1e1",
+              name: "Жим гантелей лёжа на полу",
+              sets: 3,
+              reps: 12,
+              unit: "повт.",
+              weight: "2×6 кг",
+              type: "dynamic",
+            },
+            {
+              id: "d1e2",
+              name: "Жим стоя одной рукой",
+              sets: 3,
+              reps: 10,
+              unit: "повт.",
+              weight: "6 кг",
+              type: "dynamic",
+            },
+            {
+              id: "d1e3",
+              name: "Отжимания обычные",
+              sets: 3,
+              reps: 10,
+              unit: "повт.",
+              weight: "BV",
+              type: "dynamic",
+            },
+            {
+              id: "d1e4",
+              name: "Разведения гантелей лёжа",
+              sets: 3,
+              reps: 12,
+              unit: "повт.",
+              weight: "2×6 кг",
+              type: "dynamic",
+              optional: true,
+            },
+            {
+              id: "d1e5",
+              name: "Подъём ног лёжа",
+              sets: 3,
+              reps: 15,
+              unit: "повт.",
+              weight: "BV",
+              type: "dynamic",
+            },
+          ],
+          liteExercises: [],
+        },
+        {
+          id: "day2",
+          title: "День 2 — Спина + Бицепс",
+          duration: "30-40 минут",
+          warmup: [
+            "Вращения головой 10x",
+            "Cat-Camel 10x",
+            "Ягодичный мост 12x",
+          ],
+          exercises: [
+            {
+              id: "d2e1",
+              name: "Тяга гантели одной рукой с опорой на колено",
+              sets: 3,
+              reps: 10,
+              unit: "повт.",
+              weight: "6 кг",
+              type: "dynamic",
+            },
+            {
+              id: "d2e2",
+              name: "Шраги (поднимаем плечи)",
+              sets: 3,
+              reps: 15,
+              unit: "повт.",
+              weight: "2×6 кг",
+              type: "dynamic",
+            },
+            {
+              id: "d2e3",
+              name: "Бицепс молот",
+              sets: 3,
+              reps: 10,
+              unit: "повт.",
+              weight: "6 кг",
+              type: "dynamic",
+            },
+            {
+              id: "d2e4",
+              name: "Планка",
+              sets: 3,
+              reps: 30,
+              unit: "сек.",
+              weight: "BV",
+              type: "static",
+            },
+            {
+              id: "d2e5",
+              name: "Скручивания на пресс",
+              sets: 3,
+              reps: 15,
+              unit: "повт.",
+              weight: "BV",
+              type: "dynamic",
+            },
+          ],
+          liteExercises: [],
+        },
+        {
+          id: "day3",
+          title: "День 3 — Ноги + Пресс",
+          duration: "30-40 минут",
+          warmup: [
+            "Вращения головой 10x",
+            "Cat-Camel 10x",
+            "Ягодичный мост 12x",
+          ],
+          exercises: [
+            {
+              id: "d3e1",
+              name: "Ягодичный мост",
+              sets: 3,
+              reps: 15,
+              unit: "повт.",
+              weight: "6 кг",
+              type: "dynamic",
+            },
+            {
+              id: "d3e2",
+              name: "Подъём ног лёжа",
+              sets: 3,
+              reps: 15,
+              unit: "повт.",
+              weight: "BV",
+              type: "dynamic",
+            },
+            {
+              id: "d3e3",
+              name: "Обратные скручивания",
+              sets: 3,
+              reps: 20,
+              unit: "повт.",
+              weight: "BV",
+              type: "dynamic",
+            },
+            {
+              id: "d3e4",
+              name: "Динамическая планка",
+              sets: 3,
+              reps: 20,
+              unit: "повт.",
+              weight: "BV",
+              type: "dynamic",
+            },
+            {
+              id: "d3e5",
+              name: "Ягодичные мостики импульсные",
+              sets: 2,
+              reps: 20,
+              unit: "повт.",
+              weight: "BV",
+              type: "dynamic",
+            },
+          ],
+          liteExercises: [],
+        },
+        {
+          id: "day4",
+          title: "День 4 — Лёгкий день",
+          duration: "30 минут",
+          warmup: [
+            "Вращения головой 10x",
+            "Cat-Camel 10x",
+            "Ягодичный мост 12x",
+          ],
+          exercises: [
+            {
+              id: "d4e1",
+              name: "Отжимания с наклоном",
+              sets: 3,
+              reps: 12,
+              unit: "повт.",
+              weight: "BV",
+              type: "dynamic",
+            },
+            {
+              id: "d4e2",
+              name: "Жим гантелей лёжа на полу",
+              sets: 2,
+              reps: 12,
+              unit: "повт.",
+              weight: "2×6 кг",
+              type: "dynamic",
+            },
+            {
+              id: "d4e3",
+              name: "Бицепс молот",
+              sets: 2,
+              reps: 12,
+              unit: "повт.",
+              weight: "6 кг",
+              type: "dynamic",
+            },
+            {
+              id: "d4e4",
+              name: "Хват (держишь гантель за конец)",
+              sets: 3,
+              reps: 20,
+              unit: "сек.",
+              weight: "8 кг",
+              type: "static",
+            },
+            {
+              id: "d4e5",
+              name: "Планка",
+              sets: 3,
+              reps: 40,
+              unit: "сек.",
+              weight: "BV",
+              type: "static",
+            },
+          ],
+          liteExercises: [],
+        },
+      ];
+
+      const defaultData = {
+        athlete: {
+          age: 15,
+          weight: 55,
+          height: 185,
+          condition: "Сколиоз",
+        },
+        plans: defaultPlans,
+        workouts: [],
+        overrides: {},
+        progressions: [],
+        consecutiveTracker: {},
+        goals: {
+          monthlyTarget: 12,
+        },
+        notifications: {
+          enabled: false,
+          time: "18:00",
+        },
+      };
+
+      const loadData = () => {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          return defaultData;
+        }
+        try {
+          return JSON.parse(raw);
+        } catch (error) {
+          console.error("Ошибка чтения localStorage", error);
+          return defaultData;
+        }
+      };
+
+      const saveData = (data) => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      };
+
+      const toDateKey = (date) => date.toISOString().slice(0, 10);
+      const prettyDate = (dateKey) => new Date(dateKey).toLocaleDateString("ru-RU");
+
+      const statusFromWorkout = (workout) => {
+        if (!workout) return "rest";
+        return workout.overallStatus || "rest";
+      };
+
+      const computeOverallStatus = (exerciseLogs) => {
+        if (exerciseLogs.every((log) => log.status === "full")) return "full";
+        if (exerciseLogs.some((log) => log.status === "missed")) return "missed";
+        if (exerciseLogs.some((log) => log.status === "adapted")) return "adapted";
+        return "rest";
+      };
+
+      const exerciseStatusIcon = (status) => {
+        if (status === "full") return html`<${CheckCircle2} className="text-emerald-400" />`;
+        if (status === "adapted") return html`<${AlertTriangle} className="text-amber-400" />`;
+        if (status === "missed") return html`<${XCircle} className="text-red-400" />`;
+        return html`<${AlertTriangle} className="text-slate-400" />`;
+      };
+
+      const useLocalData = () => {
+        const [data, setData] = useState(loadData());
+
+        useEffect(() => {
+          saveData(data);
+        }, [data]);
+
+        return [data, setData];
+      };
+
+      const App = () => {
+        const [data, setData] = useLocalData();
+        const [activeTab, setActiveTab] = useState("calendar");
+        const [selectedDate, setSelectedDate] = useState(toDateKey(new Date()));
+        const [activePlanId, setActivePlanId] = useState(data.plans[0]?.id || "day1");
+        const [activeMode, setActiveMode] = useState("canon");
+        const [activeWorkout, setActiveWorkout] = useState(null);
+        const [modal, setModal] = useState(null);
+        const [historySearch, setHistorySearch] = useState("");
+
+        useEffect(() => {
+          if (data.plans.length && !data.plans.find((plan) => plan.id === activePlanId)) {
+            setActivePlanId(data.plans[0].id);
+          }
+        }, [data.plans, activePlanId]);
+
+        const todaysKey = toDateKey(new Date());
+
+        const selectWorkoutDay = (planId) => {
+          setActivePlanId(planId);
+          setActiveTab("train");
+        };
+
+        const handleStartWorkout = () => {
+          const plan = data.plans.find((entry) => entry.id === activePlanId);
+          if (!plan) return;
+          const exerciseTemplate = (activeMode === "lite" && plan.liteExercises.length)
+            ? plan.liteExercises
+            : plan.exercises;
+          const startTime = new Date().toISOString();
+          setActiveWorkout({
+            id: crypto.randomUUID(),
+            date: selectedDate,
+            planId: plan.id,
+            planTitle: plan.title,
+            mode: activeMode,
+            startTime,
+            notes: "",
+            painBack: 0,
+            painKnee: 0,
+            exercises: exerciseTemplate.map((exercise) => ({
+              ...exercise,
+              status: "full",
+              actualReps: exercise.reps,
+              note: "",
+            })),
+          });
+        };
+
+        const handleSaveWorkout = (action) => {
+          if (!activeWorkout) return;
+          const endTime = new Date().toISOString();
+          const durationMs = new Date(endTime) - new Date(activeWorkout.startTime);
+          const exerciseLogs = activeWorkout.exercises;
+          const overallStatus = computeOverallStatus(exerciseLogs);
+          const updatedWorkout = {
+            ...activeWorkout,
+            endTime,
+            durationMinutes: Math.round(durationMs / 60000),
+            overallStatus,
+          };
+          const updatedWorkouts = [updatedWorkout, ...data.workouts.filter((w) => w.id !== updatedWorkout.id)];
+
+          const progressionResult = applyProgression(updatedWorkout, data);
+
+          setData({
+            ...data,
+            workouts: updatedWorkouts,
+            plans: progressionResult.plans,
+            progressions: progressionResult.progressions,
+            overrides: {
+              ...data.overrides,
+              [updatedWorkout.date]: {
+                ...(data.overrides[updatedWorkout.date] || {}),
+                status: overallStatus,
+              },
+            },
+            consecutiveTracker: progressionResult.consecutiveTracker || data.consecutiveTracker,
+          });
+          setActiveWorkout(null);
+          if (progressionResult.progressionModal) {
+            setModal(progressionResult.progressionModal);
+          } else {
+            setModal(action === "save" ? { type: "report", workout: updatedWorkout } : null);
+          }
+        };
+
+        const applyProgression = (workout, currentData) => {
+          const consecutiveTracker = { ...(currentData.consecutiveTracker || {}) };
+          const newProgressions = [...currentData.progressions];
+          let updatedPlans = [...currentData.plans];
+          let progressionModal = null;
+
+          const allFull = workout.exercises.every((exercise) => exercise.status === "full");
+          const lowPain = workout.painBack <= 3 && workout.painKnee <= 3;
+
+          if (!allFull || !lowPain) {
+            return { plans: updatedPlans, progressions: newProgressions, consecutiveTracker, progressionModal };
+          }
+
+          workout.exercises.forEach((exercise) => {
+            const key = `${workout.planId}-${exercise.name}`;
+            const currentCount = consecutiveTracker[key] || 0;
+            const nextCount = currentCount + 1;
+            consecutiveTracker[key] = nextCount;
+
+            if (nextCount >= 2) {
+              consecutiveTracker[key] = 0;
+              updatedPlans = updatedPlans.map((plan) => {
+                if (plan.id !== workout.planId) return plan;
+                const updatedExercises = plan.exercises.map((planExercise) => {
+                  if (planExercise.name !== exercise.name) return planExercise;
+                  const increment = planExercise.type === "static" ? 10 : 2;
+                  const updatedReps = planExercise.reps + increment;
+                  newProgressions.push({
+                    id: crypto.randomUUID(),
+                    date: workout.date,
+                    planId: workout.planId,
+                    exercise: planExercise.name,
+                    previousReps: planExercise.reps,
+                    newReps: updatedReps,
+                    unit: planExercise.unit,
+                  });
+                  return { ...planExercise, reps: updatedReps };
+                });
+                return { ...plan, exercises: updatedExercises };
+              });
+              progressionModal = { type: "progression", exercise: exercise.name };
+            }
+          });
+
+          return { plans: updatedPlans, progressions: newProgressions, consecutiveTracker, progressionModal };
+        };
+
+        const activePlan = data.plans.find((plan) => plan.id === activePlanId) || data.plans[0];
+
+        const calendarData = useMemo(() => {
+          const today = new Date();
+          const selected = new Date(selectedDate);
+          const month = selected.getMonth();
+          const year = selected.getFullYear();
+          const start = new Date(year, month, 1);
+          const end = new Date(year, month + 1, 0);
+          const weeks = [];
+          let current = new Date(start);
+          current.setDate(current.getDate() - ((current.getDay() + 6) % 7));
+
+          while (current <= end || current.getDay() !== 1) {
+            const week = [];
+            for (let i = 0; i < 7; i += 1) {
+              const key = toDateKey(current);
+              week.push({
+                date: new Date(current),
+                key,
+                inMonth: current.getMonth() === month,
+                isToday: key === todaysKey,
+              });
+              current.setDate(current.getDate() + 1);
+            }
+            weeks.push(week);
+          }
+
+          return {
+            monthLabel: selected.toLocaleDateString("ru-RU", { month: "long", year: "numeric" }),
+            weeks,
+          };
+        }, [selectedDate]);
+
+        const monthStats = useMemo(() => {
+          const monthKey = selectedDate.slice(0, 7);
+          const monthlyWorkouts = data.workouts.filter((workout) => workout.date.startsWith(monthKey));
+          const stats = {
+            full: 0,
+            adapted: 0,
+            missed: 0,
+            rest: 0,
+            sick: 0,
+            averageBackPain: 0,
+            averageKneePain: 0,
+            totalDuration: 0,
+          };
+          monthlyWorkouts.forEach((workout) => {
+            stats[workout.overallStatus] += 1;
+            stats.averageBackPain += workout.painBack || 0;
+            stats.averageKneePain += workout.painKnee || 0;
+            stats.totalDuration += workout.durationMinutes || 0;
+          });
+          const count = monthlyWorkouts.length || 1;
+          stats.averageBackPain = Math.round(stats.averageBackPain / count);
+          stats.averageKneePain = Math.round(stats.averageKneePain / count);
+          return stats;
+        }, [data.workouts, selectedDate]);
+
+        const handlePlanUpdate = (planId, updater) => {
+          const updatedPlans = data.plans.map((plan) => (plan.id === planId ? updater(plan) : plan));
+          setData({ ...data, plans: updatedPlans });
+        };
+
+        const handleAddPlan = () => {
+          const newPlan = {
+            id: crypto.randomUUID(),
+            title: "Новый план",
+            duration: "30 минут",
+            warmup: [],
+            exercises: [],
+            liteExercises: [],
+          };
+          setData({ ...data, plans: [...data.plans, newPlan] });
+          setActivePlanId(newPlan.id);
+        };
+
+        const handleWorkoutDelete = (workoutId) => {
+          setData({ ...data, workouts: data.workouts.filter((workout) => workout.id !== workoutId) });
+        };
+
+        const exportData = () => {
+          const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const anchor = document.createElement("a");
+          anchor.href = url;
+          anchor.download = "workout-backup.json";
+          anchor.click();
+          URL.revokeObjectURL(url);
+        };
+
+        const importData = (event) => {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = () => {
+            try {
+              const parsed = JSON.parse(reader.result);
+              setData(parsed);
+            } catch (error) {
+              alert("Не удалось импортировать файл.");
+            }
+          };
+          reader.readAsText(file);
+        };
+
+        const requestNotifications = async () => {
+          if (!("Notification" in window)) return;
+          const permission = await Notification.requestPermission();
+          setData({
+            ...data,
+            notifications: {
+              ...data.notifications,
+              enabled: permission === "granted",
+            },
+          });
+        };
+
+        const overallCompletion = () => {
+          if (!data.workouts.length) return 0;
+          const full = data.workouts.filter((w) => w.overallStatus === "full").length;
+          return Math.round((full / data.workouts.length) * 100);
+        };
+
+        return html`
+          <div className="min-h-screen flex flex-col">
+            <header className="p-4 border-b border-slate-700 flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-semibold">Трекер тренировок</h1>
+                <p className="text-sm text-slate-300">
+                  ${data.athlete.age} лет • ${data.athlete.weight} кг • ${data.athlete.height} см • ${data.athlete.condition}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-slate-300">
+                <${Bell} className="w-5 h-5" />
+                <span className="text-sm">${data.notifications.time}</span>
+              </div>
+            </header>
+
+            <main className="flex-1 p-4 pb-24">
+              ${activeTab === "calendar" && html`
+                <section className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <button
+                      className="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600"
+                      onClick=${() => {
+                        const date = new Date(selectedDate);
+                        date.setMonth(date.getMonth() - 1);
+                        setSelectedDate(toDateKey(date));
+                      }}
+                    >
+                      ◀
+                    </button>
+                    <h2 className="text-lg font-semibold capitalize">${calendarData.monthLabel}</h2>
+                    <button
+                      className="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600"
+                      onClick=${() => {
+                        const date = new Date(selectedDate);
+                        date.setMonth(date.getMonth() + 1);
+                        setSelectedDate(toDateKey(date));
+                      }}
+                    >
+                      ▶
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-7 text-xs uppercase text-slate-400">
+                    ${["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((day) => html`<div className="p-2 text-center">${day}</div>`)}
+                  </div>
+
+                  <div className="space-y-1">
+                    ${calendarData.weeks.map((week, weekIndex) => html`
+                      <div key=${weekIndex} className="grid grid-cols-7 gap-1">
+                        ${week.map((day) => {
+                          const workout = data.workouts.find((item) => item.date === day.key);
+                          const override = data.overrides[day.key];
+                          const status = override?.status || statusFromWorkout(workout);
+                          return html`
+                            <button
+                              key=${day.key}
+                              className=${`p-2 rounded-lg text-sm flex flex-col items-center gap-1 border border-slate-700 ${day.inMonth ? "" : "opacity-40"} ${day.isToday ? "ring-2 ring-blue-400" : ""}`}
+                              onClick=${() => setModal({ type: "day", date: day.key })}
+                            >
+                              <span>${day.date.getDate()}</span>
+                              <span className=${`w-2 h-2 rounded-full ${STATUS_COLORS[status]}`}></span>
+                            </button>
+                          `;
+                        })}
+                      </div>
+                    `)}
+                  </div>
+
+                  <div className="bg-slate-900/60 rounded-xl p-4 space-y-2">
+                    <h3 className="font-semibold">Сводка месяца</h3>
+                    <div className="grid md:grid-cols-3 gap-3 text-sm">
+                      <div>Полные: <span className="text-emerald-400">${monthStats.full}</span></div>
+                      <div>Адаптированные: <span className="text-amber-400">${monthStats.adapted}</span></div>
+                      <div>Пропущено: <span className="text-red-400">${monthStats.missed}</span></div>
+                      <div>Средняя боль спины: <span className="text-red-400">${monthStats.averageBackPain}/10</span></div>
+                      <div>Средняя боль коленей: <span className="text-red-400">${monthStats.averageKneePain}/10</span></div>
+                      <div>Среднее время: <span className="text-blue-400">${monthStats.totalDuration} мин</span></div>
+                    </div>
+                  </div>
+                </section>
+              `}
+
+              ${activeTab === "train" && html`
+                <section className="space-y-4">
+                  <div className="bg-slate-900/60 rounded-xl p-4 space-y-3">
+                    <h2 className="text-lg font-semibold">Начать тренировку</h2>
+                    <div className="grid md:grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-xs uppercase text-slate-400">День</label>
+                        <select
+                          value=${activePlanId}
+                          className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2"
+                          onChange=${(event) => setActivePlanId(event.target.value)}
+                        >
+                          ${data.plans.map((plan) => html`<option key=${plan.id} value=${plan.id}>${plan.title}</option>`)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs uppercase text-slate-400">Режим</label>
+                        <select
+                          value=${activeMode}
+                          className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2"
+                          onChange=${(event) => setActiveMode(event.target.value)}
+                        >
+                          <option value="canon">КАНОН</option>
+                          <option value="lite">ЛАЙТ</option>
+                        </select>
+                      </div>
+                      <div className="flex items-end">
+                        <button
+                          className="w-full py-3 rounded-lg bg-blue-500 hover:bg-blue-400 text-white font-semibold"
+                          onClick=${handleStartWorkout}
+                        >
+                          Начать тренировку
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  ${activeWorkout && html`
+                    <div className="space-y-4">
+                      <div className="bg-slate-900/60 rounded-xl p-4 space-y-2">
+                        <h3 className="font-semibold">${activeWorkout.planTitle} • ${activeWorkout.mode === "lite" ? "ЛАЙТ" : "КАНОН"}</h3>
+                        <p className="text-sm text-slate-300">Разминка: ${activePlan.warmup.join(", ")}</p>
+                      </div>
+
+                      <div className="space-y-3">
+                        ${activeWorkout.exercises.map((exercise, index) => html`
+                          <div key=${exercise.id} className="bg-slate-900/60 rounded-xl p-4 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-semibold">${exercise.name}</h4>
+                                <p className="text-xs text-slate-300">${exercise.sets}×${exercise.reps} ${exercise.unit} • ${exercise.weight}</p>
+                              </div>
+                              ${exerciseStatusIcon(exercise.status)}
+                            </div>
+                            <div className="grid md:grid-cols-3 gap-2">
+                              <select
+                                value=${exercise.status}
+                                className="bg-slate-800 border border-slate-700 rounded-lg p-2"
+                                onChange=${(event) => {
+                                  const updated = [...activeWorkout.exercises];
+                                  updated[index] = { ...updated[index], status: event.target.value };
+                                  setActiveWorkout({ ...activeWorkout, exercises: updated });
+                                }}
+                              >
+                                <option value="full">Выполнено полностью</option>
+                                <option value="adapted">Адаптировано</option>
+                                <option value="missed">Пропущено</option>
+                              </select>
+                              <input
+                                type="number"
+                                className="bg-slate-800 border border-slate-700 rounded-lg p-2"
+                                value=${exercise.actualReps}
+                                onChange=${(event) => {
+                                  const updated = [...activeWorkout.exercises];
+                                  updated[index] = { ...updated[index], actualReps: Number(event.target.value) };
+                                  setActiveWorkout({ ...activeWorkout, exercises: updated });
+                                }}
+                              />
+                              <input
+                                type="text"
+                                placeholder="Заметка"
+                                className="bg-slate-800 border border-slate-700 rounded-lg p-2"
+                                value=${exercise.note}
+                                onChange=${(event) => {
+                                  const updated = [...activeWorkout.exercises];
+                                  updated[index] = { ...updated[index], note: event.target.value };
+                                  setActiveWorkout({ ...activeWorkout, exercises: updated });
+                                }}
+                              />
+                            </div>
+                          </div>
+                        `)}
+                      </div>
+
+                      <div className="bg-slate-900/60 rounded-xl p-4 space-y-3">
+                        <div>
+                          <label className="text-sm text-slate-300">Боль в спине: ${activeWorkout.painBack}</label>
+                          <input
+                            type="range"
+                            min="0"
+                            max="10"
+                            value=${activeWorkout.painBack}
+                            className="w-full"
+                            onChange=${(event) => setActiveWorkout({ ...activeWorkout, painBack: Number(event.target.value) })}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm text-slate-300">Боль в коленях: ${activeWorkout.painKnee}</label>
+                          <input
+                            type="range"
+                            min="0"
+                            max="10"
+                            value=${activeWorkout.painKnee}
+                            className="w-full"
+                            onChange=${(event) => setActiveWorkout({ ...activeWorkout, painKnee: Number(event.target.value) })}
+                          />
+                        </div>
+                        <textarea
+                          className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2"
+                          rows="3"
+                          placeholder="Общая заметка"
+                          value=${activeWorkout.notes}
+                          onChange=${(event) => setActiveWorkout({ ...activeWorkout, notes: event.target.value })}
+                        ></textarea>
+                        <div className="flex flex-col md:flex-row gap-2">
+                          <button
+                            className="flex-1 py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white font-semibold"
+                            onClick=${() => handleSaveWorkout("save")}
+                          >
+                            Завершить тренировку
+                          </button>
+                          <button
+                            className="flex-1 py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white"
+                            onClick=${() => setActiveWorkout(null)}
+                          >
+                            Отменить
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  `}
+                </section>
+              `}
+
+              ${activeTab === "stats" && html`
+                <section className="space-y-4">
+                  <div className="bg-slate-900/60 rounded-xl p-4">
+                    <h2 className="text-lg font-semibold">Статистика</h2>
+                    <div className="grid md:grid-cols-3 gap-4 mt-3 text-sm">
+                      <div className="bg-slate-800 rounded-lg p-3">
+                        <p className="text-slate-300">Выполнение плана</p>
+                        <p className="text-2xl font-semibold text-emerald-400">${overallCompletion()}%</p>
+                      </div>
+                      <div className="bg-slate-800 rounded-lg p-3">
+                        <p className="text-slate-300">Среднее время тренировки</p>
+                        <p className="text-2xl font-semibold text-blue-400">
+                          ${data.workouts.length
+                            ? Math.round(data.workouts.reduce((total, workout) => total + (workout.durationMinutes || 0), 0) / data.workouts.length)
+                            : 0} мин
+                        </p>
+                      </div>
+                      <div className="bg-slate-800 rounded-lg p-3">
+                        <p className="text-slate-300">Цель месяца</p>
+                        <p className="text-2xl font-semibold text-amber-400">${data.goals.monthlyTarget} тренировок</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900/60 rounded-xl p-4">
+                    <h3 className="font-semibold">История прогрессий</h3>
+                    <div className="mt-3 space-y-2">
+                      ${data.progressions.length
+                        ? data.progressions.map((entry) => html`
+                            <div key=${entry.id} className="flex justify-between text-sm bg-slate-800 rounded-lg p-2">
+                              <span>${entry.exercise}</span>
+                              <span className="text-emerald-400">${entry.previousReps}${entry.unit} → ${entry.newReps}${entry.unit}</span>
+                              <span className="text-slate-300">${prettyDate(entry.date)}</span>
+                            </div>
+                          `)
+                        : html`<p className="text-sm text-slate-400">Пока нет прогрессий.</p>`}
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900/60 rounded-xl p-4 space-y-3">
+                    <h3 className="font-semibold">Дни в текущем месяце</h3>
+                    ${Object.keys(STATUS_LABELS).map((status) => html`
+                      <div className="flex items-center gap-3 text-sm">
+                        <span className="w-28 text-slate-300">${STATUS_LABELS[status]}</span>
+                        <div className="flex-1 bg-slate-800 rounded-full h-3 overflow-hidden">
+                          <div className=${`h-3 ${STATUS_COLORS[status]}`} style=${{ width: `${(monthStats[status] || 0) * 10}%` }}></div>
+                        </div>
+                        <span className="w-8 text-right">${monthStats[status] || 0}</span>
+                      </div>
+                    `)}
+                  </div>
+
+                  <div className="bg-slate-900/60 rounded-xl p-4">
+                    <h3 className="font-semibold">Личные рекорды</h3>
+                    <div className="mt-2 text-sm text-slate-300">
+                      ${data.workouts.length
+                        ? `Максимальная длительность тренировки: ${Math.max(...data.workouts.map((workout) => workout.durationMinutes || 0))} мин`
+                        : "Пока нет данных для рекордов."}
+                    </div>
+                  </div>
+                </section>
+              `}
+
+              ${activeTab === "plans" && html`
+                <section className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-lg font-semibold">Планы тренировок</h2>
+                    <button className="px-3 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 text-white" onClick=${handleAddPlan}>Добавить план</button>
+                  </div>
+                  <div className="grid gap-4">
+                    ${data.plans.map((plan) => html`
+                      <div key=${plan.id} className="bg-slate-900/60 rounded-xl p-4 space-y-3">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                          <input
+                            className="bg-slate-800 border border-slate-700 rounded-lg p-2 flex-1"
+                            value=${plan.title}
+                            onChange=${(event) => handlePlanUpdate(plan.id, (current) => ({ ...current, title: event.target.value }))}
+                          />
+                          <div className="flex gap-2">
+                            <button className="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600" onClick=${() => selectWorkoutDay(plan.id)}>Тренировка</button>
+                            <button className="px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400" onClick=${() => handlePlanUpdate(plan.id, (current) => ({ ...current, liteExercises: current.exercises.map((exercise) => ({ ...exercise })) }))}>Создать ЛАЙТ</button>
+                          </div>
+                        </div>
+                        <div className="text-sm text-slate-300">Разминка: ${plan.warmup.join(", ") || "-"}</div>
+                        <div className="space-y-2">
+                          ${plan.exercises.map((exercise, exerciseIndex) => html`
+                            <div key=${exercise.id} className="grid md:grid-cols-5 gap-2 bg-slate-800 rounded-lg p-2 text-sm">
+                              <input
+                                className="bg-slate-900/60 border border-slate-700 rounded-lg p-2 md:col-span-2"
+                                value=${exercise.name}
+                                onChange=${(event) => handlePlanUpdate(plan.id, (current) => {
+                                  const updated = [...current.exercises];
+                                  updated[exerciseIndex] = { ...updated[exerciseIndex], name: event.target.value };
+                                  return { ...current, exercises: updated };
+                                })}
+                              />
+                              <input
+                                className="bg-slate-900/60 border border-slate-700 rounded-lg p-2"
+                                type="number"
+                                value=${exercise.sets}
+                                onChange=${(event) => handlePlanUpdate(plan.id, (current) => {
+                                  const updated = [...current.exercises];
+                                  updated[exerciseIndex] = { ...updated[exerciseIndex], sets: Number(event.target.value) };
+                                  return { ...current, exercises: updated };
+                                })}
+                              />
+                              <input
+                                className="bg-slate-900/60 border border-slate-700 rounded-lg p-2"
+                                type="number"
+                                value=${exercise.reps}
+                                onChange=${(event) => handlePlanUpdate(plan.id, (current) => {
+                                  const updated = [...current.exercises];
+                                  updated[exerciseIndex] = { ...updated[exerciseIndex], reps: Number(event.target.value) };
+                                  return { ...current, exercises: updated };
+                                })}
+                              />
+                              <input
+                                className="bg-slate-900/60 border border-slate-700 rounded-lg p-2"
+                                value=${exercise.weight}
+                                onChange=${(event) => handlePlanUpdate(plan.id, (current) => {
+                                  const updated = [...current.exercises];
+                                  updated[exerciseIndex] = { ...updated[exerciseIndex], weight: event.target.value };
+                                  return { ...current, exercises: updated };
+                                })}
+                              />
+                            </div>
+                          `)}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            className="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600"
+                            onClick=${() => handlePlanUpdate(plan.id, (current) => ({
+                              ...current,
+                              exercises: [...current.exercises, {
+                                id: crypto.randomUUID(),
+                                name: "Новое упражнение",
+                                sets: 3,
+                                reps: 10,
+                                unit: "повт.",
+                                weight: "",
+                                type: "dynamic",
+                              }],
+                            }))}
+                          >
+                            Добавить упражнение
+                          </button>
+                        </div>
+                      </div>
+                    `)}
+                  </div>
+                </section>
+              `}
+
+              ${activeTab === "history" && html`
+                <section className="space-y-4">
+                  <h2 className="text-lg font-semibold">История тренировок</h2>
+                  <input
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2"
+                    placeholder="Поиск по дате (YYYY-MM-DD)"
+                    value=${historySearch}
+                    onChange=${(event) => setHistorySearch(event.target.value)}
+                  />
+                  <div className="space-y-3">
+                    ${(historySearch
+                      ? data.workouts.filter((workout) => workout.date.includes(historySearch))
+                      : data.workouts
+                    ).length
+                      ? (historySearch
+                          ? data.workouts.filter((workout) => workout.date.includes(historySearch))
+                          : data.workouts
+                        ).map((workout) => html`
+                          <div key=${workout.id} className="bg-slate-900/60 rounded-xl p-4 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h3 className="font-semibold">${workout.planTitle}</h3>
+                                <p className="text-sm text-slate-300">${prettyDate(workout.date)} • ${STATUS_LABELS[workout.overallStatus]}</p>
+                              </div>
+                              <button className="text-red-400" onClick=${() => handleWorkoutDelete(workout.id)}>
+                                <${Trash2} className="w-5 h-5" />
+                              </button>
+                            </div>
+                            <div className="text-sm text-slate-300">Боль: спина ${workout.painBack}/10 • колени ${workout.painKnee}/10</div>
+                            <button className="text-blue-400" onClick=${() => setModal({ type: "report", workout })}>Открыть отчёт</button>
+                          </div>
+                        `)
+                      : html`<p className="text-sm text-slate-400">Пока нет тренировок.</p>`}
+                  </div>
+                </section>
+              `}
+
+              ${activeTab === "settings" && html`
+                <section className="space-y-4">
+                  <h2 className="text-lg font-semibold">Настройки</h2>
+                  <div className="bg-slate-900/60 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold">Напоминания</p>
+                        <p className="text-sm text-slate-300">${data.notifications.enabled ? "Включены" : "Выключены"}</p>
+                      </div>
+                      <button className="px-3 py-2 rounded-lg bg-blue-500 hover:bg-blue-400" onClick=${requestNotifications}>Разрешить</button>
+                    </div>
+                    <div>
+                      <label className="text-sm text-slate-300">Время напоминания</label>
+                      <input
+                        type="time"
+                        value=${data.notifications.time}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2"
+                        onChange=${(event) => setData({ ...data, notifications: { ...data.notifications, time: event.target.value } })}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-slate-300">Цель тренировок в месяц</label>
+                      <input
+                        type="number"
+                        value=${data.goals.monthlyTarget}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2"
+                        onChange=${(event) => setData({ ...data, goals: { ...data.goals, monthlyTarget: Number(event.target.value) } })}
+                      />
+                    </div>
+                    <div className="grid md:grid-cols-3 gap-2">
+                      <button className="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600" onClick=${exportData}>Экспорт</button>
+                      <label className="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-center cursor-pointer">
+                        Импорт
+                        <input type="file" className="hidden" onChange=${importData} />
+                      </label>
+                      <button
+                        className="px-3 py-2 rounded-lg bg-red-500 hover:bg-red-400"
+                        onClick=${() => {
+                          if (confirm("Очистить все данные?")) {
+                            setData(defaultData);
+                          }
+                        }}
+                      >
+                        Очистить всё
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900/60 rounded-xl p-4 space-y-2">
+                    <h3 className="font-semibold">О приложении</h3>
+                    <p className="text-sm text-slate-300">
+                      Минималистичный трекер тренировок для подростка со сколиозом. Все данные хранятся локально,
+                      поддерживаются планы, история, прогрессия и статистика.
+                    </p>
+                  </div>
+                </section>
+              `}
+            </main>
+
+            <nav className="fixed bottom-0 inset-x-0 bg-slate-900/95 border-t border-slate-700 px-2 py-3">
+              <div className="grid grid-cols-6 gap-2 text-xs">
+                <button className="flex flex-col items-center gap-1" onClick=${() => setActiveTab("calendar")}>
+                  <${Calendar} className=${`w-5 h-5 ${activeTab === "calendar" ? "text-blue-400" : "text-slate-400"}`} />
+                  <span className=${activeTab === "calendar" ? "text-blue-400" : "text-slate-400"}>Календарь</span>
+                </button>
+                <button className="flex flex-col items-center gap-1" onClick=${() => setActiveTab("train")}>
+                  <${Dumbbell} className=${`w-5 h-5 ${activeTab === "train" ? "text-blue-400" : "text-slate-400"}`} />
+                  <span className=${activeTab === "train" ? "text-blue-400" : "text-slate-400"}>Тренировка</span>
+                </button>
+                <button className="flex flex-col items-center gap-1" onClick=${() => setActiveTab("stats")}>
+                  <${BarChart2} className=${`w-5 h-5 ${activeTab === "stats" ? "text-blue-400" : "text-slate-400"}`} />
+                  <span className=${activeTab === "stats" ? "text-blue-400" : "text-slate-400"}>Статистика</span>
+                </button>
+                <button className="flex flex-col items-center gap-1" onClick=${() => setActiveTab("plans")}>
+                  <${List} className=${`w-5 h-5 ${activeTab === "plans" ? "text-blue-400" : "text-slate-400"}`} />
+                  <span className=${activeTab === "plans" ? "text-blue-400" : "text-slate-400"}>Планы</span>
+                </button>
+                <button className="flex flex-col items-center gap-1" onClick=${() => setActiveTab("history")}>
+                  <${CheckCircle2} className=${`w-5 h-5 ${activeTab === "history" ? "text-blue-400" : "text-slate-400"}`} />
+                  <span className=${activeTab === "history" ? "text-blue-400" : "text-slate-400"}>История</span>
+                </button>
+                <button className="flex flex-col items-center gap-1" onClick=${() => setActiveTab("settings")}>
+                  <${Settings} className=${`w-5 h-5 ${activeTab === "settings" ? "text-blue-400" : "text-slate-400"}`} />
+                  <span className=${activeTab === "settings" ? "text-blue-400" : "text-slate-400"}>Настройки</span>
+                </button>
+              </div>
+            </nav>
+
+            ${modal && modal.type === "day" && html`
+              <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4">
+                <div className="bg-slate-900 rounded-xl p-4 w-full max-w-lg space-y-3">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-semibold">${prettyDate(modal.date)}</h3>
+                    <button onClick=${() => setModal(null)} className="text-slate-400">Закрыть</button>
+                  </div>
+                  ${data.workouts.find((workout) => workout.date === modal.date)
+                    ? html`
+                        <div className="bg-slate-800 rounded-lg p-3 text-sm space-y-1">
+                          <div className="font-semibold">${data.workouts.find((workout) => workout.date === modal.date).planTitle}</div>
+                          <div>Статус: ${STATUS_LABELS[data.workouts.find((workout) => workout.date === modal.date).overallStatus]}</div>
+                          <div>Боль спины: ${data.workouts.find((workout) => workout.date === modal.date).painBack}/10</div>
+                          <div>Боль коленей: ${data.workouts.find((workout) => workout.date === modal.date).painKnee}/10</div>
+                          <button
+                            className="text-blue-400"
+                            onClick=${() => setModal({ type: "report", workout: data.workouts.find((workout) => workout.date === modal.date) })}
+                          >
+                            Открыть отчёт
+                          </button>
+                        </div>
+                      `
+                    : html`<p className="text-sm text-slate-400">Нет сохранённой тренировки.</p>`}
+                  <div>
+                    <label className="text-sm text-slate-300">Статус дня</label>
+                    <select
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2"
+                      value=${data.overrides[modal.date]?.status || "rest"}
+                      onChange=${(event) => setData({
+                        ...data,
+                        overrides: {
+                          ...data.overrides,
+                          [modal.date]: {
+                            ...(data.overrides[modal.date] || {}),
+                            status: event.target.value,
+                          },
+                        },
+                      })}
+                    >
+                      ${Object.keys(STATUS_LABELS).map((status) => html`<option key=${status} value=${status}>${STATUS_LABELS[status]}</option>`)}
+                    </select>
+                  </div>
+                  <textarea
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2"
+                    rows="3"
+                    placeholder="Заметки за день"
+                    value=${data.overrides[modal.date]?.note || ""}
+                    onChange=${(event) => setData({
+                      ...data,
+                      overrides: {
+                        ...data.overrides,
+                        [modal.date]: {
+                          ...(data.overrides[modal.date] || {}),
+                          note: event.target.value,
+                        },
+                      },
+                    })}
+                  ></textarea>
+                  <button className="px-3 py-2 rounded-lg bg-blue-500 hover:bg-blue-400" onClick=${() => setModal(null)}>Сохранить</button>
+                </div>
+              </div>
+            `}
+
+            ${modal && modal.type === "report" && html`
+              <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4">
+                <div className="bg-slate-900 rounded-xl p-4 w-full max-w-2xl space-y-3 overflow-y-auto max-h-full">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-semibold">Отчёт за ${prettyDate(modal.workout.date)}</h3>
+                    <button onClick=${() => setModal(null)} className="text-slate-400">Закрыть</button>
+                  </div>
+                  <div className="text-sm text-slate-300">${modal.workout.planTitle} • ${modal.workout.mode === "lite" ? "ЛАЙТ" : "КАНОН"}</div>
+                  <div className="text-sm text-slate-300">Время: ${modal.workout.durationMinutes || 0} мин</div>
+                  <div className="space-y-2">
+                    ${modal.workout.exercises.map((exercise) => html`
+                      <div key=${exercise.id} className="bg-slate-800 rounded-lg p-2 flex items-center justify-between text-sm">
+                        <div>
+                          <div>${exercise.name}</div>
+                          <div className="text-slate-300">${exercise.sets}×${exercise.reps}${exercise.unit} → ${exercise.actualReps}${exercise.unit}</div>
+                        </div>
+                        ${exerciseStatusIcon(exercise.status)}
+                      </div>
+                    `)}
+                  </div>
+                  <div className="text-sm text-slate-300">Боль: спина ${modal.workout.painBack}/10 • колени ${modal.workout.painKnee}/10</div>
+                  <div className="text-sm text-slate-300">Заметка: ${modal.workout.notes || "-"}</div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      className="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 flex items-center gap-2"
+                      onClick=${() => {
+                        const text = [
+                          `Дата: ${prettyDate(modal.workout.date)}`,
+                          `Тренировка: ${modal.workout.planTitle}`,
+                          `Режим: ${modal.workout.mode === "lite" ? "ЛАЙТ" : "КАНОН"}`,
+                          `Время: ${modal.workout.durationMinutes || 0} мин`,
+                          `Боль спины: ${modal.workout.painBack}/10`,
+                          `Боль коленей: ${modal.workout.painKnee}/10`,
+                          "Упражнения:",
+                          ...modal.workout.exercises.map((exercise) => `${exercise.name} — ${exercise.status} (${exercise.actualReps}${exercise.unit})`),
+                          `Заметка: ${modal.workout.notes || "-"}`,
+                        ].join("\n");
+                        navigator.clipboard.writeText(text);
+                      }}
+                    >
+                      <${ClipboardCopy} className="w-4 h-4" />
+                      Копировать отчёт
+                    </button>
+                    <button className="px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 flex items-center gap-2" onClick=${() => setModal(null)}>
+                      <${Save} className="w-4 h-4" />
+                      Сохранить
+                    </button>
+                    <button className="px-3 py-2 rounded-lg bg-red-500 hover:bg-red-400 flex items-center gap-2" onClick=${() => handleWorkoutDelete(modal.workout.id)}>
+                      <${Trash2} className="w-4 h-4" />
+                      Удалить
+                    </button>
+                  </div>
+                </div>
+              </div>
+            `}
+
+            ${modal && modal.type === "progression" && html`
+              <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4">
+                <div className="bg-slate-900 rounded-xl p-4 w-full max-w-md space-y-3">
+                  <h3 className="font-semibold">Прогрессия!</h3>
+                  <p className="text-sm text-slate-300">Упражнение «${modal.exercise}» увеличило нагрузку.</p>
+                  <button className="px-3 py-2 rounded-lg bg-blue-500 hover:bg-blue-400" onClick=${() => setModal(null)}>Отлично</button>
+                </div>
+              </div>
+            `}
+          </div>
+        `;
+      };
+
+      const root = createRoot(document.getElementById("root"));
+      root.render(html`<${App} />`);
+    </script>
+  </body>
+</html>
